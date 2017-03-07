@@ -1,0 +1,7 @@
+*.egg*
+build/
+*.pyc
+*.swp
+.venv
+.testrepository
+.tox

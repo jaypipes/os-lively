@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package oslively
+
+// Represents a thing that can be health-checked
+message Target {
+    enum Status {
+        UP = 0;
+        DOWN = 1;
+    }
+
+    string uuid = 1;
+    string service_type = 2;
+    string host = 3;
+    Status status = 4;
+
+    string region = 10;
+
+    uint64 maintenance_start = 20;
+    uint64 maintenance_end = 21;
+    string maintenance_note = 22;
+}
