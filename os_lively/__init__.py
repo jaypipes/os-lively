@@ -95,6 +95,9 @@ nova-compute worker on a specific host is up and receiving connections:
 
                 ...
 """
+
+import collections
+
 import etcd3
 
 from os_lively import target
@@ -252,3 +255,45 @@ def service_update(conf, service):
         client.transactions.set(region_key, None, ttl=conf.status_ttl)
     ]
     client.transaction(compare=[], success=on_success, failure=[])
+
+
+NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
+
+
+def service_notify(conf, **filters):
+    """Returns a structure containing an iterator and a cancellation callback.
+    The iterator yields a service message every time there is an update to the
+    service.
+
+    Returns None if no such service record could be found.
+
+    :param conf: `os_lively.conf.Conf` object representing etcd connection
+                 info and other configuration options
+    :param **filters: kwargs representing various lookup filters:
+        service_type: string representing the type of service, e.g.
+                      'nova-compute'
+        host: IP address or hostname
+        uuid: UUID of the target/service
+    """
+    client = _etcd_client(conf)
+
+    uuid = filters.get('uuid')
+    if not uuid::
+        # Find the UUID of the service by looking up service type and host
+        if 'service_type' not in filters or 'host' not in filters:
+            # service type alone isn't sufficient for determining uniqueness
+            raise ValueError(
+                "'host' and 'service_type' required when "
+                "not specifying 'uuid'"
+            )
+
+        service_type = filters['service_type']
+        host = filters['host']
+        uri = _uri_service_type_host(service_type, host)
+        uuid, meta = client.get(uri)
+        if uuid is None:
+            return None
+    
+    uri = _KEY_SERVICE_BY_UUID + '/' + uuid
+    it, cancel = client.watch(uri)
+    return NotifyResult(events=it, cancel=cancel)

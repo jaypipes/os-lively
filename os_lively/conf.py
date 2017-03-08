@@ -12,14 +12,34 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
+
+
+DEFAULT_DEBUG = False
+DEFAULT_ETCD_HOST = 'localhost'
+DEFAULT_ETCD_PORT = 2379
+DEFAULT_STATUS_TTL = 60
+
 
 class Conf(object):
     """Configuration for os_lively healthcheck service."""
 
-    def __init__(self):
-        self.debug = True
+    def __init__(self, **overrides):
+        self.debug = overrides.get(
+            'debug',
+            os.environ.get('OSLIVELY_DEBUG', DEFAULT_DEBUG),
+        )
         
-        self.etcd_host = 'localhost'
-        self.etcd_port = 2379
+        self.etcd_host = overrides.get(
+            'etcd_host',
+            os.environ.get('OSLIVELY_ETCD_HOST', DEFAULT_ETCD_HOST),
+        )
+        self.etcd_port = overrides.get(
+            'etcd_port',
+            os.environ.get('OSLIVELY_ETCD_PORT', DEFAULT_ETCD_PORT),
+        )
 
-        self.status_ttl = 60
+        self.status_ttl = overrides.get(
+            'status_ttl',
+            os.environ.get('OSLIVELY_STATUS_TTL', DEFAULT_STATUS_TTL),
+        )
