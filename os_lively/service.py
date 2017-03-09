@@ -110,14 +110,18 @@ _KEY_SERVICE_BY_REGION = _KEY_SERVICES + '/by-region'
 
 def _etcd_client(conf):
     # TODO(jaypipes): Cache etcd3 client connections and the init dirs thing?
-    client = etcd3.client(host=conf.etcd_host, port=conf.etcd_port)
+    client = etcd3.client(
+        host=conf.etcd_host,
+        port=conf.etcd_port,
+        timeout=conf.etcd_connect_timeout,
+    )
     _init_etcd_dirs(client)
     return client
 
 
-def _init_etcd_dirs(conf):
+def _init_etcd_dirs(client):
     """Initializes the directory structure we need in etcd. This call is
-    idempotens. If the directories exist, does nothing.
+    idempotent. If the directories exist, does nothing.
     """
     val, meta = client.get(_KEY_SERVICES)
     if meta is not None:

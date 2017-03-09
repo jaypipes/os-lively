@@ -18,6 +18,7 @@ import os
 DEFAULT_DEBUG = False
 DEFAULT_ETCD_HOST = 'localhost'
 DEFAULT_ETCD_PORT = 2379
+DEFAULT_ETCD_CONNECT_TIMEOUT = 5
 DEFAULT_STATUS_TTL = 60
 
 
@@ -37,6 +38,13 @@ class Conf(object):
         self.etcd_port = overrides.get(
             'etcd_port',
             os.environ.get('OSLIVELY_ETCD_PORT', DEFAULT_ETCD_PORT),
+        )
+        self.etcd_connect_timeout = overrides.get(
+            'etcd_connect_timeout',
+            os.environ.get(
+                'OSLIVELY_ETCD_CONNECT_TIMEOUT',
+                DEFAULT_ETCD_CONNECT_TIMEOUT,
+            ),
         )
 
         self.status_ttl = overrides.get(
