@@ -12,12 +12,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
+import os
 
-import fixtures
-import mock
+import testtools
+
+from os_lively import conf
 
 
-class NoInitEtcd(fixtures.Fixture):
+class TestCase(testtools.TestCase):
+    """Test case base class for all tests."""
+
     def setUp(self):
-        super(NoInitEtcd, self).setUp()
+        super(TestCase, self).setUp()
+        self.cfg = conf.Conf(
+            debug=bool(os.environ.get('OSLIVELY_TEST_DEBUG', True)),
+            etcd_host=os.environ.get('OSLIVELY_TEST_ETCD_HOST', 'localhost'),
+            etcd_port=os.environ.get('OSLIVELY_TEST_ETCD_PORT', 2379),
+            status_ttl=60,
+        )

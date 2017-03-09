@@ -115,28 +115,7 @@ def _etcd_client(conf):
         port=conf.etcd_port,
         timeout=conf.etcd_connect_timeout,
     )
-    _init_etcd_dirs(client)
     return client
-
-
-def _init_etcd_dirs(client):
-    """Initializes the directory structure we need in etcd. This call is
-    idempotent. If the directories exist, does nothing.
-    """
-    val, meta = client.get(_KEY_SERVICES)
-    if meta is not None:
-        return
-
-    compare = [
-        client.transactions.get(_KEY_SERVICES)[0] == None,
-    ]
-    on_success = [
-        client.transactions.set(_KEY_SERVICES_BY_UUID),
-        client.transactions.set(_KEY_SERVICES_BY_TYPE_HOST),
-        client.transactions.set(_KEY_SERVICES_BY_STATUS),
-        client.transactions.set(_KEY_SERVICES_BY_REGION),
-    ]
-    client.transaction(compare=compare, success=on_success, failure=[])
 
 
 def _key_exists(client, uri, key):

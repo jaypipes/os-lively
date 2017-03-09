@@ -12,21 +12,17 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
+
 import testtools
 
 from os_lively import conf
 from os_lively.tests import fixtures
+from os_lively.tests import base
 
 
-class TestCase(testtools.TestCase):
+class TestCase(base.TestCase):
     """Test case base class for all unit tests."""
 
     def setUp(self):
         super(TestCase, self).setUp()
-        self.cfg = conf.Conf(
-            debug=True,
-            etcd_host='localhost',
-            etcd_port=2379,
-            status_ttl=60,
-        )
-        self.useFixture(fixtures.NoInitEtcd())
