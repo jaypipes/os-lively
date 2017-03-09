@@ -276,7 +276,7 @@ def update(conf, service):
     client.transaction(compare=[], success=on_success, failure=[])
 
 
-NotifyResuls = collections.namedtuple('NotifyResult', 'events cancel')
+NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
 
 
 def notify(conf, **filters):
