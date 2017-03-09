@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package oslively
+package oslively;
 
 // Represents a thing that can be health-checked
 message Target {

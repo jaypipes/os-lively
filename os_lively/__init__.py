@@ -100,20 +100,41 @@ import collections
 
 import etcd3
 
-from os_lively import target
+from os_lively import target_pb2 as target
+
 
 _KEY_SERVICES = '/services'
 _KEY_SERVICE_BY_UUID = _KEY_SERVICES + '/by-uuid'
-_KEY_SERVICE_BY_TYPE = _KEY_SERVICES + '/by-type'
-_KEY_SERVICE_BY_TYPE = _KEY_SERVICES + '/by-type-host'
+_KEY_SERVICE_BY_TYPE_HOST = _KEY_SERVICES + '/by-type-host'
 _KEY_SERVICE_BY_STATUS = _KEY_SERVICES + '/by-status'
 _KEY_SERVICE_BY_REGION = _KEY_SERVICES + '/by-region'
 
 
 def _etcd_client(conf):
-    # TODO(jaypipes): Cache etcd3 client connections?
+    # TODO(jaypipes): Cache etcd3 client connections and the init dirs thing?
     client = etcd3.client(host=conf.etcd_host, port=conf.etcd_port)
+    _init_etcd_dirs(client)
     return client
+
+
+def _init_etcd_dirs(conf):
+    """Initializes the directory structure we need in etcd. This call is
+    idempotent. If the directories exist, does nothing.
+    """
+    val, meta = client.get(_KEY_SERVICES)
+    if meta is not None:
+        return
+
+    compare = [
+        client.transactions.get(_KEY_SERVICES)[0] == None,
+    ]
+    on_success = [
+        client.transactions.set(_KEY_SERVICES_BY_UUID),
+        client.transactions.set(_KEY_SERVICES_BY_TYPE_HOST),
+        client.transactions.set(_KEY_SERVICES_BY_STATUS),
+        client.transactions.set(_KEY_SERVICES_BY_REGION),
+    ]
+    client.transaction(compare=compare, success=on_success, failure=[])
 
 
 def _key_exists(client, uri, key):
@@ -157,10 +178,12 @@ def service_is_up(conf, **filters):
         return _service_is_up_by_uuid(client, uuid)
 
     # Find the UUID of the service by looking up service type and host
-    if 'service_type' in filters:
-        if 'host' not in filters:
-            # service type alone isn't sufficient for determining uniqueness
-            raise ValueError("'host' required when specifying 'service_type'")
+    if 'service_type' not in filters or 'host' not in filters:
+        # service type alone isn't sufficient for determining uniqueness
+        raise ValueError(
+            "'host' and 'service_type' required when "
+            "not specifying 'uuid'"
+        )
 
     service_type = filters['service_type']
     host = filters['host']
@@ -205,10 +228,12 @@ def service_get(conf, **filters):
         return _service_get_by_uuid(client, uuid)
 
     # Find the UUID of the service by looking up service type and host
-    if 'service_type' in filters:
-        if 'host' not in filters:
-            # service type alone isn't sufficient for determining uniqueness
-            raise ValueError("'host' required when specifying 'service_type'")
+    if 'service_type' not in filters or 'host' not in filters:
+        # service type alone isn't sufficient for determining uniqueness
+        raise ValueError(
+            "'host' and 'service_type' required when "
+            "not specifying 'uuid'"
+        )
 
     service_type = filters['service_type']
     host = filters['host']
@@ -248,11 +273,11 @@ def service_update(conf, service):
         # Add the target message blob in the primary UUID index 
         client.transactions.set(uuid_key, payload, ttl=conf.status_ttl),
         # Add the UUID to the index by service type and host
-        client.transactions.set(type_host_key, uuid, ttl=conf.status_ttl)
+        client.transactions.set(type_host_key, uuid, ttl=conf.status_ttl),
         # Add the UUID to the index by status
-        client.transactions.set(status_key, None, ttl=conf.status_ttl)
+        client.transactions.set(status_key, None, ttl=conf.status_ttl),
         # Add the UUID to the index by region
-        client.transactions.set(region_key, None, ttl=conf.status_ttl)
+        client.transactions.set(region_key, None, ttl=conf.status_ttl),
     ]
     client.transaction(compare=[], success=on_success, failure=[])
 
@@ -278,7 +303,7 @@ def service_notify(conf, **filters):
     client = _etcd_client(conf)
 
     uuid = filters.get('uuid')
-    if not uuid::
+    if not uuid:
         # Find the UUID of the service by looking up service type and host
         if 'service_type' not in filters or 'host' not in filters:
             # service type alone isn't sufficient for determining uniqueness
