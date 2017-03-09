@@ -26,7 +26,7 @@ cfg = conf.Conf(
     status_ttl=60,
 )
 
-t = service.Service()
+s = service.Service()
 s.type = 'nova-compute'
 s.status = service.Status.UP
 s.host = 'localhost'
@@ -64,7 +64,7 @@ n = service.notify(
 )
 count = 0
 for change_event in n.events:
-    t = service.Service()
+    s = service.Service()
     s.ParseFromString(change_evens.value)
     status = service.status_itoa(s.status)
     print "nova-compute on localhost changed status to %s" % status
