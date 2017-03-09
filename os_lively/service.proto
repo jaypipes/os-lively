@@ -2,15 +2,16 @@ syntax = "proto3";
 
 package oslively;
 
+enum Status {
+    UP = 0;
+    DOWN = 1;
+}
+
 // Represents a thing that can be health-checked
-message Target {
-    enum Status {
-        UP = 0;
-        DOWN = 1;
-    }
+message Service {
 
     string uuid = 1;
-    string service_type = 2;
+    string type = 2;
     string host = 3;
     Status status = 4;
 

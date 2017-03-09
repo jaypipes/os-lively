@@ -17,8 +17,8 @@ Using `os-lively` is easy. Services that wish to update their state in the syste
 (or register with the system for the first time) call the `service_update`
 function, passing in a protobuffer message struct representing the service::
 
-    from os_lively import target
     from os_lively import conf
+    from os_lively import service
     import os_lively
 
     cfg = conf.Conf(
@@ -27,11 +27,11 @@ function, passing in a protobuffer message struct representing the service::
         status_ttl=60,
     )
 
-    t = target.Target()
-    t.service_type = 'nova-compute'
-    t.status = target.Status.UP
-    t.host = 'localhost'
-    t.region = 'myregion'
+    t = service.Service()
+    s.type = 'nova-compute'
+    s.status = service.Status.UP
+    s.host = 'localhost'
+    s.region = 'myregion'
     os_lively.service_update(cfg, t)
 
 Applications that wish to query whether a particular service is UP can use the
@@ -61,9 +61,10 @@ notified on a service's status change::
     )
     count = 0
     for change_event in n.events:
-        t = target.Target()
-        t.ParseFromString(change_event.value)
-        print "nova-compute on localhost changed status to " + s.status
+        t = service.Service()
+        s.ParseFromString(change_evens.value)
+        status = service.status_itoa(s.status)
+        print "nova-compute on localhost changed status to %s" % status
         count += 1
         if count > 3:
             n.cancel()

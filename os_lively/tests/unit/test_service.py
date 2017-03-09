@@ -11,6 +11,7 @@
 #    under the License.
 
 import os_lively
+from os_lively import service
 from os_lively.tests.unit import base
 
 
@@ -21,3 +22,21 @@ class ServiceTestCase(base.TestCase):
             os_lively.service_is_up,
             self.cfg,
         )
+
+    def test_status_itoa(self):
+        val_map = {
+            0: 'UP',
+            1: 'DOWN',
+            99: None,
+        }
+        for k, v in val_map.items():
+            self.assertEqual(v, service.status_itoa(k))
+
+    def test_status_atoi(self):
+        val_map = {
+            'UP': 0,
+            'DOWN': 1,
+            'UNKNOWN': None,
+        }
+        for k, v in val_map.items():
+            self.assertEqual(v, service.status_atoi(k))
