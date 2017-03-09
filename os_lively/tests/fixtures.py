@@ -21,4 +21,4 @@ import mock
 class NoInitEtcd(fixtures.Fixture):
     def setUp(self):
         super(NoInitEtcd, self).setUp()
-        mock.patch('os_lively._init_etcd_dirs').start()
+        mock.patch('os_lively.service._init_etcd_dirs').start()

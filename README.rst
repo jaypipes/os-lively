@@ -19,7 +19,6 @@ function, passing in a protobuffer message struct representing the service::
 
     from os_lively import conf
     from os_lively import service
-    import os_lively
 
     cfg = conf.Conf(
         etcd_host='localhost',
@@ -32,14 +31,14 @@ function, passing in a protobuffer message struct representing the service::
     s.status = service.Status.UP
     s.host = 'localhost'
     s.region = 'myregion'
-    os_lively.service_update(cfg, t)
+    service.update(cfg, s)
 
 Applications that wish to query whether a particular service is UP can use the
 `service_is_up` function, which takes either a UUID of the service (if known)
 or the service's host and type combination::
 
     from os_lively import conf
-    import os_lively
+    from os_lively import service
 
     cfg = conf.Conf(
         etcd_host='localhost',
@@ -47,7 +46,7 @@ or the service's host and type combination::
         status_ttl=60,
     )
 
-    if os_lively.service_is_up(service_type='nova-compute', host='localhost'):
+    if service.is_up(cfg, type='nova-compute', host='localhost'):
         print "compute is UP"
     else:
         print "compute is DOWN!"
@@ -55,7 +54,7 @@ or the service's host and type combination::
 Instead of polling a service's status, an application may also request to be
 notified on a service's status change::
 
-    n = os_lively.service_notify(
+    n = service.notify(
         service_type='nova-compute',
         host='localhost',
     )

@@ -10,7 +10,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import os_lively
 from os_lively import service
 from os_lively.tests.unit import base
 
@@ -19,7 +18,7 @@ class ServiceTestCase(base.TestCase):
     def test_service_is_up_no_args(self):
         self.assertRaises(
             ValueError,
-            os_lively.service_is_up,
+            service.is_up,
             self.cfg,
         )
 
