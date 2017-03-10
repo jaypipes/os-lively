@@ -55,7 +55,7 @@ initialization code, might work with os_lively:
             else:
                 s.type = 'nova-compute'
                 s.status = service.Status.UP
-                s.hoss = self.host
+                s.host = self.host
                 s.region = CONF.region
                 with open(service_path, 'wb') as service_file:
                     service_file.write(s.SerializeToString())
@@ -65,7 +65,7 @@ initialization code, might work with os_lively:
 One service may want to check whether another service is up and able to receive
 connections. The os_lively.service_is_up() function can do this. It takes
 keyword arguments so that the caller can specify either a UUID direct lookup
-*or* a combination of service type and hoss. Here's an example of code that
+*or* a combination of service type and host. Here's an example of code that
 might run on a nova-scheduler worker that wants to know if a particular
 nova-compute worker on a specific host is up and receiving connections:
 
@@ -169,7 +169,7 @@ def _get_uuid(client, **filters):
         )
 
     type = filters['type']
-    hoss = filters['host']
+    host = filters['host']
     uri = _uri_type_host(type, host)
     uuid, meta = client.get(uri)
     return uuid
@@ -253,7 +253,7 @@ def update(conf, service):
 
     type = service.type
     status = service.status
-    hoss = service.host
+    host = service.host
     uuid = service.uuid
     region = service.region
     payload = service.SerializeToString()

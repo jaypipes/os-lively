@@ -30,11 +30,59 @@ class ServiceTestCase(base.TestCase):
             self.cfg,
         )
 
-    def test_service_is_up_uuid_exists(self):
-        self.etcd.get.return_value = (self.uuid, mock.sentinel.meta)
+    def test_service_is_up_uuid_up(self):
+        self.etcd.get.return_value = (1, mock.sentinel.meta)
         self.assertTrue(service.is_up(self.cfg, uuid=self.uuid))
         uri = "/services/by-status/UP/" + self.uuid
         self.etcd.get.assert_called_once_with(uri)
+
+    def test_service_is_up_uuid_down(self):
+        self.etcd.get.return_value = (None, None)
+        self.assertFalse(service.is_up(self.cfg, uuid=self.uuid))
+        uri = "/services/by-status/UP/" + self.uuid
+        self.etcd.get.assert_called_once_with(uri)
+
+    def test_service_is_up_type_host_exist_up(self):
+        self.etcd.get.side_effect = [
+            # The request to get the UUID of the service matching host and type
+            (self.uuid, mock.sentinel.meta),
+            # The request to see if the UUID is in UP status
+            (1, mock.sentinel.meta),
+        ]
+        res = service.is_up(self.cfg, type='nova-compute', host='localhost')
+        self.assertTrue(res)
+        type_host_uri = "/services/by-type-host/nova-compute/localhost"
+        status_uri = "/services/by-status/UP/" + self.uuid
+        self.etcd.get.assert_has_calls([
+            mock.call(type_host_uri),
+            mock.call(status_uri),
+        ])
+
+    def test_service_is_up_type_host_exist_down(self):
+        self.etcd.get.side_effect = [
+            # The request to get the UUID of the service matching host and type
+            (self.uuid, mock.sentinel.meta),
+            # The request to see if the UUID is in UP status
+            (None, None),  # Not Found
+        ]
+        res = service.is_up(self.cfg, type='nova-compute', host='localhost')
+        self.assertFalse(res)
+        type_host_uri = "/services/by-type-host/nova-compute/localhost"
+        status_uri = "/services/by-status/UP/" + self.uuid
+        self.etcd.get.assert_has_calls([
+            mock.call(type_host_uri),
+            mock.call(status_uri),
+        ])
+
+    def test_service_is_up_type_host_not_exist(self):
+        self.etcd.get.side_effect = [
+            # The request to get the UUID of the service matching host and type
+            (None, None),  # Not Found
+        ]
+        res = service.is_up(self.cfg, type='nova-compute', host='localhost')
+        self.assertFalse(res)
+        type_host_uri = "/services/by-type-host/nova-compute/localhost"
+        self.etcd.get.assert_called_once_with(type_host_uri)
 
     def test_status_itoa(self):
         val_map = {
