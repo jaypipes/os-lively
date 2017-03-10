@@ -99,7 +99,8 @@ from os_lively import service_pb2
 
 Service = service_pb2.Service
 Status = service_pb2.Status
-
+Status.UP = service_pb2.UP
+Status.DOWN = service_pb2.DOWN
 
 _KEY_SERVICES = '/services'
 _KEY_SERVICE_BY_UUID = _KEY_SERVICES + '/by-uuid'
