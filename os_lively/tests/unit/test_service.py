@@ -10,17 +10,31 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import uuid
+
+import mock
+
 from os_lively import service
 from os_lively.tests.unit import base
 
 
 class ServiceTestCase(base.TestCase):
+    def setUp(self):
+        super(ServiceTestCase, self).setUp()
+        self.uuid = uuid.uuid4().hex
+
     def test_service_is_up_no_args(self):
         self.assertRaises(
             ValueError,
             service.is_up,
             self.cfg,
         )
+
+    def test_service_is_up_uuid_exists(self):
+        self.etcd.get.return_value = (self.uuid, mock.sentinel.meta)
+        self.assertTrue(service.is_up(self.cfg, uuid=self.uuid))
+        uri = "/services/by-status/UP/" + self.uuid
+        self.etcd.get.assert_called_once_with(uri)
 
     def test_status_itoa(self):
         val_map = {

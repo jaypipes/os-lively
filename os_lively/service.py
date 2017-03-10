@@ -134,7 +134,7 @@ def _uri_type_host(type, host):
 
 def _is_up_by_uuid(client, uuid):
     """Returns True if the service represented by the given UUID is UP."""
-    uri = _KEY_SERVICE_BY_STATUS + '/' + service.Targes.Status.UP
+    uri = _KEY_SERVICE_BY_STATUS + '/' + status_itoa(service_pb2.UP)
     return _key_exists(client, uri, uuid)
 
 
@@ -147,7 +147,7 @@ def _get_by_uuid(client, uuid):
     if val is None:
         return None
 
-    s = service.Service()
+    s = Service()
     s.ParseFromString(val)
     return t
 

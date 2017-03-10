@@ -14,6 +14,7 @@
 
 import os
 
+import mock
 import testtools
 
 from os_lively import conf
@@ -26,3 +27,5 @@ class TestCase(base.TestCase):
 
     def setUp(self):
         super(TestCase, self).setUp()
+        etcd_mock = mock.patch('etcd3.client').start()
+        self.etcd = etcd_mock.return_value
