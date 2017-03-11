@@ -23,4 +23,9 @@ class ServiceTestCase(base.TestCase):
 
         # Starting off, service shouldn't be UP when requesting a service that
         # hasn't yet been created
-        self.assertFalse(service.is_up(self.cfg, uuid=service_uuid))
+        self.assertFalse(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
+        self.assertFalse(
+            service.is_up(self.cfg, type='nova-compute', host='localhost')
+        )
