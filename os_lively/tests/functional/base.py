@@ -15,6 +15,7 @@
 import testtools
 
 from os_lively.tests import base
+from os_lively.tests import fixtures
 
 
 class TestCase(base.TestCase):
@@ -22,3 +23,4 @@ class TestCase(base.TestCase):
     """Test case base class for all functional tests."""
     def setUp(self):
         super(TestCase, self).setUp()
+        self.etcd = self.useFixture(fixtures.EtcdTestEnvironment(self.cfg))

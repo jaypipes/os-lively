@@ -103,10 +103,12 @@ Status.UP = service_pb2.UP
 Status.DOWN = service_pb2.DOWN
 
 _KEY_SERVICES = '/services'
-_KEY_SERVICE_BY_UUID = _KEY_SERVICES + '/by-uuid'
-_KEY_SERVICE_BY_TYPE_HOST = _KEY_SERVICES + '/by-type-host'
-_KEY_SERVICE_BY_STATUS = _KEY_SERVICES + '/by-status'
-_KEY_SERVICE_BY_REGION = _KEY_SERVICES + '/by-region'
+_KEY_SERVICE_BY_UUID = '/by-uuid'
+_KEY_SERVICE_BY_TYPE_HOST = '/by-type-host'
+_KEY_SERVICE_BY_STATUS = '/by-status'
+_KEY_SERVICE_BY_REGION = '/by-region'
+
+_EMPTY_VALUE = ''  # Needs to be encode-able, so None doesn't work
 
 
 def _etcd_client(conf):
@@ -129,21 +131,45 @@ def _key_exists(client, uri, key):
     return val is not None
 
 
-def _uri_type_host(type, host):
-    return _KEY_SERVICE_BY_TYPE_HOST + '/' + type + '/' + host
+def _uri_services(conf):
+    if conf.etcd_key_prefix != '':
+        return '/' + conf.etcd_key_prefix + _KEY_SERVICES
+    return _KEY_SERVICES
 
 
-def _is_up_by_uuid(client, uuid):
+def _key_by_uuid(conf, uuid):
+    base = _uri_services(conf)
+    return base + _KEY_SERVICE_BY_UUID + '/' + uuid
+
+
+def _key_by_type_host(conf, type, host):
+    base = _uri_services(conf)
+    return base + _KEY_SERVICE_BY_TYPE_HOST + '/' + type + '/' + host
+
+
+def _key_by_status(conf, status_code):
+    base = _uri_services(conf)
+    return base + _KEY_SERVICE_BY_STATUS + '/' + status_itoa(status_code)
+
+
+def _key_by_region(conf, region):
+    base = _uri_services(conf)
+    return base + _KEY_SERVICE_BY_REGION + '/' + region
+
+
+def _is_up_by_uuid(conf, uuid):
     """Returns True if the service represented by the given UUID is UP."""
-    uri = _KEY_SERVICE_BY_STATUS + '/' + status_itoa(service_pb2.UP)
+    uri = _key_by_status(conf, service_pb2.UP)
+    client = _etcd_client(conf)
     return _key_exists(client, uri, uuid)
 
 
-def _get_by_uuid(client, uuid):
+def _get_by_uuid(conf, uuid):
     """Returns service represented by the given UUID or None if no such service
     record exists.
     """
-    uri = _KEY_SERVICE_BY_UUID + '/' + uuid
+    uri = _key_by_uuid(conf, uuid)
+    client = _etcd_client(conf)
     val, meta = client.get(uri)
     if val is None:
         return None
@@ -153,10 +179,10 @@ def _get_by_uuid(client, uuid):
     return t
 
 
-def _get_uuid(client, **filters):
+def _get_uuid(conf, **filters):
     """Given filter parameters, returns the UUID of a service.
 
-    :param client: etcd client
+    :param conf: `os_lively.conf.Conf` object
     :param **filters: kwargs representing various lookup filters:
         type: string representing the type of service, e.g.
                       'nova-compute'
@@ -171,7 +197,8 @@ def _get_uuid(client, **filters):
 
     type = filters['type']
     host = filters['host']
-    uri = _uri_type_host(type, host)
+    uri = _key_by_type_host(conf, type, host)
+    client = _etcd_client(conf)
     uuid, meta = client.get(uri)
     return uuid
 
@@ -206,15 +233,13 @@ def is_up(conf, **filters):
         host: IP address or hostname
         uuid: UUID of the service
     """
-    client = _etcd_client(conf)
-
     uuid = filters.get('uuid')
     if uuid is None:
-        uuid = _get_uuid(client, **filters)
+        uuid = _get_uuid(conf, **filters)
     if uuid is None:
         return False
     
-    return _is_up_by_uuid(client, uuid)
+    return _is_up_by_uuid(conf, uuid)
 
 
 def get_one(conf, **filters):
@@ -229,15 +254,13 @@ def get_one(conf, **filters):
         host: IP address or hostname
         uuid: UUID of the service
     """
-    client = _etcd_client(conf)
-
     uuid = filters.get('uuid')
     if uuid is None:
-        uuid = _get_uuid(client, **filters)
+        uuid = _get_uuid(conf, **filters)
     if uuid is None:
         return None
     
-    return _get_by_uuid(client, uuid)
+    return _get_by_uuid(conf, uuid)
 
 
 def update(conf, service):
@@ -259,22 +282,24 @@ def update(conf, service):
     region = service.region
     payload = service.SerializeToString()
 
-    uuid_key = _KEY_SERVICE_BY_UUID + '/' + uuid
-    type_host_key = _uri_type_host(type, host)
-    status_key = _KEY_SERVICE_BY_STATUS + '/' + status + '/' + uuid
-    region_key = _KEY_SERVICE_BY_REGION + '/' + region + '/' + uuid
+    uuid_key = _key_by_uuid(conf, uuid)
+    type_host_key = _key_by_type_host(conf, type, host)
+    status_key = _key_by_status(conf, status)
+    region_key = _key_by_region(conf, region)
+
+    lease = client.lease(ttl=conf.status_ttl)
 
     on_success = [
         # Add the service message blob in the primary UUID index 
-        client.transactions.set(uuid_key, payload, ttl=conf.status_ttl),
+        client.transactions.put(uuid_key, value=payload),
         # Add the UUID to the index by service type and host
-        client.transactions.set(type_host_key, uuid, ttl=conf.status_ttl),
+        client.transactions.put(type_host_key, value=uuid),
         # Add the UUID to the index by status
-        client.transactions.set(status_key, None, ttl=conf.status_ttl),
+        client.transactions.put(status_key, value=_EMPTY_VALUE),
         # Add the UUID to the index by region
-        client.transactions.set(region_key, None, ttl=conf.status_ttl),
+        client.transactions.put(region_key, value=_EMPTY_VALUE),
     ]
-    client.transaction(compare=[], success=on_success, failure=[])
+    return client.transaction(compare=[], success=on_success, failure=[])
 
 
 NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
@@ -295,14 +320,13 @@ def notify(conf, **filters):
         host: IP address or hostname
         uuid: UUID of the service
     """
-    client = _etcd_client(conf)
-
     uuid = filters.get('uuid')
     if uuid is None:
         uuid = _get_uuid(client, **filters)
     if uuid is None:
         return None
     
-    uri = _KEY_SERVICE_BY_UUID + '/' + uuid
+    uri = _key_by_uuid(conf, uuid)
+    client = _etcd_client(conf)
     it, cancel = client.watch(uri)
     return NotifyResult(events=it, cancel=cancel)

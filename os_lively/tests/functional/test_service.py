@@ -29,3 +29,20 @@ class ServiceTestCase(base.TestCase):
         self.assertFalse(
             service.is_up(self.cfg, type='nova-compute', host='localhost')
         )
+
+        # Create the service record in an UP status and validate that the
+        # service is found and in an UP state.
+        s = service.Service()
+        s.uuid = service_uuid
+        s.host = 'localhost'
+        s.type = 'nova-compute'
+        s.region = 'us-east'
+        s.status = service.Status.UP
+        service.update(self.cfg, s)
+
+        self.assertTrue(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
+        self.assertTrue(
+            service.is_up(self.cfg, type='nova-compute', host='localhost')
+        )
