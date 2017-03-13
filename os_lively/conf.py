@@ -19,7 +19,7 @@ DEFAULT_DEBUG = False
 DEFAULT_ETCD_HOST = 'localhost'
 DEFAULT_ETCD_PORT = 2379
 DEFAULT_ETCD_CONNECT_TIMEOUT = 5
-DEFAULT_ETCD_KEY_PREFIX = ''
+DEFAULT_ETCD_KEY_NAMESPACE = ''
 DEFAULT_STATUS_TTL = 60
 
 
@@ -47,11 +47,11 @@ class Conf(object):
                 DEFAULT_ETCD_CONNECT_TIMEOUT,
             ),
         )
-        self.etcd_key_prefix = overrides.get(
-            'etcd_key_prefix',
+        self.etcd_key_namespace = overrides.get(
+            'etcd_key_namespace',
             os.environ.get(
-                'OSLIVELY_ETCD_KEY_PREFIX',
-                DEFAULT_ETCD_KEY_PREFIX,
+                'OSLIVELY_ETCD_KEY_NAMESPACE',
+                DEFAULT_ETCD_KEY_NAMESPACE,
             ),
         )
 

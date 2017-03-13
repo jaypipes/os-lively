@@ -132,8 +132,8 @@ def _key_exists(client, uri, key):
 
 
 def _uri_services(conf):
-    if conf.etcd_key_prefix != '':
-        return '/' + conf.etcd_key_prefix + _KEY_SERVICES
+    if conf.etcd_key_namespace != '':
+        return '/' + conf.etcd_key_namespace.lstrip('/') + _KEY_SERVICES
     return _KEY_SERVICES
 
 
@@ -284,7 +284,7 @@ def update(conf, service):
 
     uuid_key = _key_by_uuid(conf, uuid)
     type_host_key = _key_by_type_host(conf, type, host)
-    status_key = _key_by_status(conf, status)
+    status_key = _key_by_status(conf, status) + '/' + uuid
     region_key = _key_by_region(conf, region)
 
     lease = client.lease(ttl=conf.status_ttl)
