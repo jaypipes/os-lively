@@ -267,6 +267,55 @@ def get_one(conf, **filters):
     return _get_by_uuid(conf, uuid)
 
 
+def delete(conf, **filters):
+    """Given a set of filters, deletes the matching service entry and all
+    related index entries.
+
+    :param conf: `os_lively.conf.Conf` object representing etcd connection
+                 info and other configuration options
+    :param **filters: kwargs representing various lookup filters:
+        type: string representing the type of service, e.g.
+                      'nova-compute'
+        host: IP address or hostname
+        uuid: UUID of the service
+    """
+    client = _etcd_client(conf)
+
+    uuid = filters.get('uuid')
+    if uuid is None:
+        uuid = _get_uuid(conf, **filters)
+    if uuid is None:
+        return None
+    
+    s = _get_by_uuid(conf, uuid)
+    type = s.type
+    host = s.host
+    uuid = s.uuid
+    region = s.region
+
+    uuid_key = _key_by_uuid(conf, uuid)
+    type_host_key = _key_by_type_host(conf, type, host)
+    region_key = _key_by_region(conf, region)
+
+    status_trxs = []
+    for st in Status.ALL_STATUSES:
+        # Make sure the uuid is removed from any index
+        status_key = _key_by_status(conf, st) + '/' + uuid
+        trx = client.transactions.delete(status_key)
+        status_trxs.append(trx)
+
+    on_success = [
+        # Add the service message blob in the primary UUID index 
+        client.transactions.delete(uuid_key),
+        # Add the UUID to the index by service type and host
+        client.transactions.delete(type_host_key),
+        # Add the UUID to the index by region
+        client.transactions.delete(region_key),
+    ]
+    on_success.extend(status_trxs)
+    return client.transaction(compare=[], success=on_success, failure=[])
+
+
 def update(conf, service):
     """Sets the service record in etcd.
 

@@ -59,3 +59,10 @@ class ServiceTestCase(base.TestCase):
         self.assertFalse(
             service.is_up(self.cfg, uuid=service_uuid)
         )
+
+        service.delete(self.cfg, uuid=service_uuid)
+        res = service.get_one(self.cfg, uuid=service_uuid)
+        self.assertIsNone(res)
+        self.assertFalse(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
