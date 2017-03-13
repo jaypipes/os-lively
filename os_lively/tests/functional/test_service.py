@@ -46,3 +46,10 @@ class ServiceTestCase(base.TestCase):
         self.assertTrue(
             service.is_up(self.cfg, type='nova-compute', host='localhost')
         )
+
+        res = service.get_one(self.cfg, uuid=service_uuid)
+        self.assertIsInstance(res, service.Service)
+        self.assertEqual(service_uuid, res.uuid)
+        self.assertEqual('localhost', res.host)
+        self.assertEqual('nova-compute', res.type)
+        self.assertEqual('us-east', res.region)

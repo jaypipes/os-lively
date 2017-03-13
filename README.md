@@ -13,7 +13,7 @@ license are detailed in the `LICENSE` file.
 ## Usage
 
 Using `os-lively` is easy. Services that wish to update their state in the system
-(or register with the system for the first time) call the `service_update`
+(or register with the system for the first time) call the `service.update`
 function, passing in a protobuffer message struct representing the service:
 
 ```python
@@ -35,7 +35,7 @@ service.update(cfg, s)
 ```
 
 Applications that wish to query whether a particular service is UP can use the
-`service_is_up` function, which takes either a UUID of the service (if known)
+`service.is_up` function, which takes either a UUID of the service (if known)
 or the service's host and type combination:
 
 ```python
@@ -65,7 +65,7 @@ n = service.notify(
 count = 0
 for change_event in n.events:
     s = service.Service()
-    s.ParseFromString(change_evens.value)
+    s.ParseFromString(change_event.value)
     status = service.status_itoa(s.status)
     print "nova-compute on localhost changed status to %s" % status
     count += 1
@@ -118,23 +118,23 @@ your etcd container service using `curl`:
 ```bash
 $ curl -LsS http://$OSLIVELY_TEST_ETCD_HOST:2379/health | python -m json.tool
 {
-        "health": "true"
+    "health": "true"
 }
-$ curl -LsS http://$OSLIVELY_TEST_ETCD_HOST:2379/v2/members | python -mjson.tool
+$ curl -LsS -X POST -d '{}' http://$OSLIVELY_TEST_ETCD_HOST:2379/v3alpha/maintenance/status | python -mjson.tool
 {
-    "members": [
-        {
-            "clientURLs": [
-                "http://localhost:2379"
-            ],
-            "id": "8e9e05c52164694d",
-            "name": "oslively",
-            "peerURLs": [
-                "http://localhost:2380"
-            ]
-        }
-    ]
+    "dbSize": "81920",
+    "header": {
+        "cluster_id": "14841639068965178418",
+        "member_id": "10276657743932975437",
+        "raft_term": "2",
+        "revision": "143"
+    },
+    "leader": "10276657743932975437",
+    "raftIndex": "517438",
+    "raftTerm": "2",
+    "version": "3.0.6"
 }
+
 ```
 
 You can then run functional tests using your etcd container by simply running

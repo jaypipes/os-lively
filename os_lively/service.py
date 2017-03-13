@@ -176,7 +176,7 @@ def _get_by_uuid(conf, uuid):
 
     s = Service()
     s.ParseFromString(val)
-    return t
+    return s
 
 
 def _get_uuid(conf, **filters):
