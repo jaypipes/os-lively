@@ -101,6 +101,10 @@ Service = service_pb2.Service
 Status = service_pb2.Status
 Status.UP = service_pb2.UP
 Status.DOWN = service_pb2.DOWN
+Status.ALL_STATUSES = (
+    Status.UP,
+    Status.DOWN,
+)
 
 _KEY_SERVICES = '/services'
 _KEY_SERVICE_BY_UUID = '/by-uuid'
@@ -284,21 +288,30 @@ def update(conf, service):
 
     uuid_key = _key_by_uuid(conf, uuid)
     type_host_key = _key_by_type_host(conf, type, host)
-    status_key = _key_by_status(conf, status) + '/' + uuid
     region_key = _key_by_region(conf, region)
 
     lease = client.lease(ttl=conf.status_ttl)
+
+    status_trxs = []
+    for st in Status.ALL_STATUSES:
+        status_key = _key_by_status(conf, st) + '/' + uuid
+        if st == status:
+            # Make sure the uuid is in the appropriate status directory index
+            trx = client.transactions.put(status_key, value=_EMPTY_VALUE)
+        else:
+            # Make sure the uuid is removed from any index
+            trx = client.transactions.delete(status_key)
+        status_trxs.append(trx)
 
     on_success = [
         # Add the service message blob in the primary UUID index 
         client.transactions.put(uuid_key, value=payload),
         # Add the UUID to the index by service type and host
         client.transactions.put(type_host_key, value=uuid),
-        # Add the UUID to the index by status
-        client.transactions.put(status_key, value=_EMPTY_VALUE),
         # Add the UUID to the index by region
         client.transactions.put(region_key, value=_EMPTY_VALUE),
     ]
+    on_success.extend(status_trxs)
     return client.transaction(compare=[], success=on_success, failure=[])
 
 

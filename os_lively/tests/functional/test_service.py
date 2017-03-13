@@ -53,3 +53,9 @@ class ServiceTestCase(base.TestCase):
         self.assertEqual('localhost', res.host)
         self.assertEqual('nova-compute', res.type)
         self.assertEqual('us-east', res.region)
+
+        res.status = service.Status.DOWN
+        service.update(self.cfg, res)
+        self.assertFalse(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
