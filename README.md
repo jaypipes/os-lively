@@ -5,7 +5,7 @@
 It uses [`etcd3`](https://coreos.com/etcd/docs/latest/v2/api_v3.html) and
 [`Google Protocol Buffers`](https://developers.google.com/protocol-buffers/) as
 its underlying technology for storing and retrieving liveness information. The
-excellent [python-etcd3](https://github.com/kragniz/python-etcd3) library is
+excellent [`python-etcd3`](https://github.com/kragniz/python-etcd3) library is
 used for Python communication with etcd.
 
 `os-lively` is distributed under the terms of the Apache
