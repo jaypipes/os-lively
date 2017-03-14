@@ -4,7 +4,9 @@
 
 It uses [`etcd3`](https://coreos.com/etcd/docs/latest/v2/api_v3.html) and
 [`Google Protocol Buffers`](https://developers.google.com/protocol-buffers/) as
-its underlying technology for storing and retrieving liveness information.
+its underlying technology for storing and retrieving liveness information. The
+excellent [python-etcd3](https://github.com/kragniz/python-etcd3) library is
+used for Python communication with etcd.
 
 `os-lively` is distributed under the terms of the Apache
 License, Version 2.0. The full terms and conditions of this
@@ -229,6 +231,20 @@ The `os-lively` service record store is structured like so:
 **NOTE**: `$OSLIVELY_NAMESPACE` is configurable with the
 `OSLIVELY_ETCD_KEY_NAMESPACE` environ variable and is useful for testing
 purposes (see example in `/os_lively/test/fixtures.py`.
+
+#### Configuration options
+
+Set the following environment variables to control `os-lively`:
+
+* `OSLIVELY_ETCD_HOST`: IP address or hostname of the etcd3 cluster/service
+  (default: `localhost`)
+* `OSLIVELY_ETCD_PORT`: Port for the etcd3 cluster/service (default: `2379`)
+* `OSLIVELY_ETCD_CONNECT_TIMEOUT`: Seconds to timeout trying to connect to
+  etcd3 cluster/service (default: `5`)
+* `OSLIVELY_ETCD_KEY_NAMESPACE`: String key namespace. Primarily used to
+  isolate functional test. (default: `''`)
+* `OSLIVELY_STATUS_TTL`: Number of seconds to make status index updates
+  (default: `60`)
 
 #### Using `etcdctl` for querying
 
