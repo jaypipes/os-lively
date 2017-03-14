@@ -69,3 +69,16 @@ service.delete(cfg, uuid=s1.uuid)
 
 service.get_one(cfg, uuid=s1.uuid)
 service.is_up(cfg, uuid=s1.uuid)
+
+# Force down the remaining service
+
+service.get_one(cfg, uuid=s2.uuid)
+
+service.down(
+    cfg, 'Sky is falling!',
+    maint_end=datetime.datetime(year=2019, month=1, day=1),
+    uuid=s2.uuid,
+)
+
+service.is_up(cfg, uuid=s2.uuid)
+service.get_one(cfg, uuid=s2.uuid)

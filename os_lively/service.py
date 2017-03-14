@@ -91,6 +91,8 @@ nova-compute worker on a specific host is up and receiving connections:
 """
 
 import collections
+import datetime
+import time
 
 import etcd3
 
@@ -398,6 +400,45 @@ def delete(conf, **filters):
     ]
     on_success.extend(status_trxs)
     return client.transaction(compare=[], success=on_success, failure=[])
+
+
+def down(conf, maint_note=None, maint_start=None, maint_end=None, **filters):
+    """Shortcut method for setting a service to DOWN status and optionally
+    entering the service into a "maintenance mode".
+
+    :param conf: `os_lively.conf.Conf` object representing etcd connection
+                 info and other configuration options
+    :param maint_note: Optional maintenance note/reason for the downing
+    :param maint_start: Optional maintenance start time. If not set and
+                        maint_note is not None, defaults to UTC timestamp of
+                        current time. You may pass a datetime or UNIX timestamp
+                        (seconds since epoch)
+    :param maint_end: Optional maintenance end time. You may pass a datetime or
+                      a UNIX timestamp (seconds since epoch)
+    """
+    if maint_note is not None:
+        if maint_start is None:
+            maint_start = datetime.datetime.utcnow()
+
+    if isinstance(maint_start, datetime.datetime):
+        maint_start = int(time.mktime(maint_start.timetuple()))
+
+    if isinstance(maint_end, datetime.datetime):
+        maint_end = int(time.mktime(maint_end.timetuple()))
+
+    s = get_one(conf, **filters)
+    if s is None:
+        return None
+
+    s.status = Status.DOWN
+    if maint_note is not None:
+        s.maintenance_note = maint_note
+    if maint_start is not None:
+        s.maintenance_start = maint_start
+    if maint_end is not None:
+        s.maintenance_end= maint_end
+
+    return update(conf, s)
 
 
 def update(conf, service):

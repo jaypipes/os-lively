@@ -186,6 +186,42 @@ region: "us-west"
 False
 ```
 
+We can "force down" a service and set a maintenance note on it using the
+`service.down()` method:
+
+```bash
+>>> # Force down the remaining service
+...
+>>> service.get_one(cfg, uuid=s2.uuid)
+uuid: "de541c29ec5449e9ab9cea9d938e395c"
+type: "nova-compute"
+host: "localhost"
+status: DOWN
+region: "us-east"
+maintenance_start: 1489529548
+maintenance_note: "Failed disk /dev/sda"
+
+>>>
+>>> service.down(
+...     cfg, 'Sky is falling!',
+...     maint_end=datetime.datetime(year=2019, month=1, day=1),
+...     uuid=s2.uuid,
+... )
+(True, [None])
+>>>
+>>> service.is_up(cfg, uuid=s2.uuid)
+False
+>>> service.get_one(cfg, uuid=s2.uuid)
+uuid: "de541c29ec5449e9ab9cea9d938e395c"
+type: "nova-compute"
+host: "localhost"
+status: DOWN
+region: "us-east"
+maintenance_start: 1489529548
+maintenance_end: 1546318800
+maintenance_note: "Sky is falling!"
+```
+
 ## Deploying and operating
 
 Applications that use `os-lively` must have an `etcd3` installation running
