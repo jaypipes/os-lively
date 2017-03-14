@@ -34,6 +34,9 @@ def delete(cfg, key, curl_log=None, skip_namespace=False):
     if not skip_namespace:
         namespace = cfg.etcd_key_namespace
         key = namespace + '/' + key
+        range_end = base64.b64encode(increment_last_byte(key))
+    else:
+        range_end = base64.b64encode(b'\0')
     encoded_key = base64.b64encode(key)
     uri = uri.format(
         host=cfg.etcd_host,
@@ -41,6 +44,7 @@ def delete(cfg, key, curl_log=None, skip_namespace=False):
     )
     data = {
         'key': encoded_key,
+        'range_end': range_end,
     }
     cmd = ['curl', uri, '-LsS', '-X', 'POST', '-d', json.dumps(data)]
 

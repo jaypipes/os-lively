@@ -33,7 +33,7 @@ class EtcdTestEnvironment(fixtures.Fixture):
             random.choice('0123456789abcedf') for i in range(8)
         )
         self.cfg = cfg
-        self.cfg.etcd_key_namespace = '/testing' #test_namespace
+        self.cfg.etcd_key_namespace = test_namespace
 
     def setUp(self):
         super(EtcdTestEnvironment, self).setUp()
@@ -45,9 +45,7 @@ class EtcdTestEnvironment(fixtures.Fixture):
                 self._get_curl_calls,
             ),
         )
-        for key, _ in self.curl_get_all().items():
-            self.curl_delete(key, skip_namespace=True)
-        #self.addCleanup(self.curl_delete)
+        self.addCleanup(self.curl_delete, '/', skip_namespace=True)
 
     def _get_curl_calls(self):
         for cmd, out in self.curl_log:
