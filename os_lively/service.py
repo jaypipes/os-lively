@@ -78,7 +78,7 @@ nova-compute worker on a specific host is up and receiving connections:
         def select_destinations(self, ...):
             # Grab a list of resource provider UUIDs that the placement API
             # finds as matches for a particular request for resources...
-            rps = placemens.get_resource_providers(...)
+            rps = placement.get_resource_providers(...)
             for rp in rps:
                 # Determine the nova-compute service handling the resource
                 # provider and verify the service is UP...
@@ -116,7 +116,7 @@ _EMPTY_VALUE = ''  # Needs to be encode-able, so None doesn't work
 
 
 def _etcd_client(conf):
-    # TODO(jaypipes): Cache etcd3 client connections and the init dirs thing?
+    # TODO(jaypipes): Cache etcd3 client connections?
     client = etcd3.client(
         host=conf.etcd_host,
         port=conf.etcd_port,
@@ -176,11 +176,39 @@ def _get_by_uuid(conf, uuid):
     client = _etcd_client(conf)
     val, meta = client.get(uri)
     if val is None:
-        return None
+        return None, None
 
     s = Service()
     s.ParseFromString(val)
-    return s
+    return s, meta
+
+
+def _get_all(conf):
+    """Returns service represented by the given UUID or None if no such service
+    record exists.
+    """
+    uri = _uri_services(conf) + '/by-uuid/'
+    client = _etcd_client(conf)
+    kvms = client.get_prefix(uri)
+    if not kvms:
+        return []
+
+    results = []
+    for val, _meta in kvms:
+        s = Service()
+        s.ParseFromString(val)
+        results.append(s)
+    return results
+
+
+def _fields_changed(orig, new):
+    """Returns a set of names of fields that changed between orig and new."""
+    changed = set()
+    fields = [f.name for f in service_pb2._SERVICE.fields]
+    for field in fields:
+        if getattr(orig, field) != getattr(new, field):
+            changed.add(field)
+    return changed
 
 
 def _get_uuid(conf, **filters):
@@ -264,7 +292,63 @@ def get_one(conf, **filters):
     if uuid is None:
         return None
     
-    return _get_by_uuid(conf, uuid)
+    return _get_by_uuid(conf, uuid)[0]
+
+
+def get_many(conf, **filters):
+    """Given a set of filters, returns a single service record matching those
+    filters, or None if no service record was found.
+
+    :param conf: `os_lively.conf.Conf` object representing etcd connection
+                 info and other configuration options
+    :param **filters: kwargs representing various lookup filters:
+        status: One or more status codes representing the statuses the matched
+                services should be in
+        type: One or more strings representing the type of service, e.g.
+              'nova-compute'
+        host: One or more IP addresses or hostnames the service is on
+        region: One or more regions the service is in
+        uuid: One or more UUIDs to search for
+    """
+    # TODO(jaypipes): Obviously this isn't efficient at all, since we're not
+    # using the indexes. Perhaps do some stuff to increase the performance of
+    # this particular function in the future.
+    conds = []
+    uuids = filters.get('uuid', [])
+    if not isinstance(uuids, list):
+        uuids = [uuids]
+    if uuids:
+        conds.append(lambda s: s.uuid in uuids)
+
+    regions = filters.get('region', [])
+    if not isinstance(regions, list):
+        regions = [regions]
+    if regions:
+        conds.append(lambda s: s.region in regions)
+
+    statuses = filters.get('status', [])
+    if not isinstance(statuses, list):
+        statuses = [statuses]
+    if statuses:
+        conds.append(lambda s: s.status in statuses)
+
+    types = filters.get('type', [])
+    if not isinstance(types, list):
+        types = [types]
+    if types:
+        conds.append(lambda s: s.type in types)
+
+    hosts = filters.get('host', [])
+    if not isinstance(hosts, list):
+        hosts = [hosts]
+    if hosts:
+        conds.append(lambda s: s.host in hosts)
+
+    results = _get_all(conf)
+    return [
+        res for res in results
+        if all(cond(res) for cond in conds)
+    ]
 
 
 def delete(conf, **filters):
@@ -287,7 +371,7 @@ def delete(conf, **filters):
     if uuid is None:
         return None
     
-    s = _get_by_uuid(conf, uuid)
+    s = _get_by_uuid(conf, uuid)[0]
     type = s.type
     host = s.host
     uuid = s.uuid
@@ -326,6 +410,67 @@ def update(conf, service):
     :param service: `os_lively.service.Service` message object representing
                     the service record.
     """
+    changed = set()
+    existing, existing_meta = _get_by_uuid(conf, service.uuid)
+    if existing:
+        changed = _fields_changed(existing, service)
+        if not changed:
+            return True, []
+
+    if not existing:
+        return _new_service_trx(conf, service)
+
+    client = _etcd_client(conf)
+    lease = client.lease(ttl=conf.status_ttl)
+    uuid = service.uuid
+
+    on_success = []
+
+    if 'status' in changed:
+        old_status = existing.status
+        old_status_key = _key_by_status(conf, old_status) + '/' + uuid
+        trx = client.transactions.delete(old_status_key)
+        on_success.append(trx)
+        new_status = service.status
+        new_status_key = _key_by_status(conf, new_status) + '/' + uuid
+        trx = client.transactions.put(new_status_key, value=_EMPTY_VALUE)
+        on_success.append(trx)
+
+    if 'type' in changed or 'host' in changed:
+        old_type = existing.type
+        old_host = existing.host
+        old_type_host_key = _key_by_type_host(conf, old_type, old_host)
+        trx = client.transactions.delete(old_type_host_key)
+        on_success.append(trx)
+        new_type = service.type
+        new_host = service.host
+        new_type_host_key = _key_by_type_host(conf, new_type, new_host)
+        trx = client.transactions.delete(new_type_host_key)
+        on_success.append(trx)
+
+    if 'region' in changed:
+        old_region = existing.region
+        old_region_key = _key_by_region(conf, region) + '/' + uuid
+        trx = client.transactions.delete(old_region_key)
+        on_success.append(trx)
+        new_region = service.region
+        new_region_key = _key_by_region(conf, new_region) + '/' + uuid
+        trx = client.transactions.put(new_region_key, value=_EMPTY_VALUE)
+        on_success.append(trx)
+
+    # Update the primary service record...
+    uuid_key = _key_by_uuid(conf, uuid)
+    payload = service.SerializeToString()
+    trx = client.transactions.put(uuid_key, value=payload)
+    on_success.append(trx)
+
+    compare = [
+        client.transactions.version(uuid_key) == existing_meta.version,
+    ]
+    return client.transaction(compare=[], success=on_success, failure=[])
+
+
+def _new_service_trx(conf, service):
     client = _etcd_client(conf)
 
     type = service.type
@@ -338,31 +483,22 @@ def update(conf, service):
     uuid_key = _key_by_uuid(conf, uuid)
     type_host_key = _key_by_type_host(conf, type, host)
     region_key = _key_by_region(conf, region)
-
-    lease = client.lease(ttl=conf.status_ttl)
-
-    status_trxs = []
-    for st in Status.ALL_STATUSES:
-        status_key = _key_by_status(conf, st) + '/' + uuid
-        if st == status:
-            # Make sure the uuid is in the appropriate status directory index
-            trx = client.transactions.put(status_key, value=_EMPTY_VALUE)
-        else:
-            # Make sure the uuid is removed from any index
-            trx = client.transactions.delete(status_key)
-        status_trxs.append(trx)
+    status_key = _key_by_status(conf, status) + '/' + uuid
 
     on_success = [
         # Add the service message blob in the primary UUID index 
         client.transactions.put(uuid_key, value=payload),
         # Add the UUID to the index by service type and host
         client.transactions.put(type_host_key, value=uuid),
+        # Add the UUID to the index by status
+        client.transactions.put(status_key, value=_EMPTY_VALUE),
         # Add the UUID to the index by region
         client.transactions.put(region_key, value=_EMPTY_VALUE),
     ]
-    on_success.extend(status_trxs)
-    return client.transaction(compare=[], success=on_success, failure=[])
-
+    compare = [
+        client.transactions.version(uuid_key) == 0,
+    ]
+    return client.transaction(compare=compare, success=on_success, failure=[])
 
 NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
 
