@@ -45,7 +45,7 @@ class EtcdTestEnvironment(fixtures.Fixture):
                 self._get_curl_calls,
             ),
         )
-        self.addCleanup(self.curl_delete, '/', skip_namespace=True)
+        self.addCleanup(self.curl_delete, '/')
 
     def _get_curl_calls(self):
         for cmd, out in self.curl_log:

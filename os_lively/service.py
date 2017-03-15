@@ -562,6 +562,7 @@ def _new_service_trx(conf, service):
     res = client.transaction(compare=compare, success=on_success, failure=[])
     return res, status_lease
 
+
 NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
 
 
