@@ -59,3 +59,7 @@ class Conf(object):
             'status_ttl',
             os.environ.get('OSLIVELY_STATUS_TTL', DEFAULT_STATUS_TTL),
         )
+        # The minimum TTL in etcd3 is 5 seconds:
+        # https://github.com/coreos/etcd/blob/\
+        # 6dcd020d7da9730caf261a46378dce363c296519/lease/lessor.go#L34
+        self.status_ttl = max(5, self.status_ttl)

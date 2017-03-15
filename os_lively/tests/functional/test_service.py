@@ -10,6 +10,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import time
+
 import uuid
 
 from os_lively import service
@@ -108,6 +110,28 @@ class ServiceTestCase(base.TestCase):
         services = service.get_many(self.cfg, host='localhost')
         service_uuids = [s.uuid for s in services]
         self.assertIn(service_uuid, service_uuids)
+
+        # Set the service back into an UP state after setting a short TTL.
+        # Check the service is UP immediately after and then not UP after the
+        # TTL.
+        # This is the minimum TTL in etcd3:
+        # https://github.com/coreos/etcd/blob/\
+        # 6dcd020d7da9730caf261a46378dce363c296519/lease/lessor.go#L34
+        new_ttl = 5
+        orig_ttl = self.cfg.status_ttl
+        self.cfg.status_ttl = new_ttl
+
+        res.status = service.Status.UP
+        service.update(self.cfg, res)
+        self.assertTrue(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
+        time.sleep(new_ttl + 1)
+        self.assertFalse(
+            service.is_up(self.cfg, uuid=service_uuid)
+        )
+
+        self.cfg.status_ttl = orig_ttl
 
         # Delete the service and verify there's no longer any record of it
         service.delete(self.cfg, uuid=service_uuid)

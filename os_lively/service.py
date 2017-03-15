@@ -462,8 +462,8 @@ def update(conf, service):
         return _new_service_trx(conf, service)
 
     client = _etcd_client(conf)
-    lease = client.lease(ttl=conf.status_ttl)
     uuid = service.uuid
+    status_lease = client.lease(ttl=conf.status_ttl)
 
     on_success = []
 
@@ -474,7 +474,11 @@ def update(conf, service):
         on_success.append(trx)
         new_status = service.status
         new_status_key = _key_by_status(conf, new_status) + '/' + uuid
-        trx = client.transactions.put(new_status_key, value=_EMPTY_VALUE)
+        trx = client.transactions.put(
+            new_status_key,
+            value=_EMPTY_VALUE,
+            lease=status_lease,
+        )
         on_success.append(trx)
 
     if 'type' in changed or 'host' in changed:
@@ -486,7 +490,10 @@ def update(conf, service):
         new_type = service.type
         new_host = service.host
         new_type_host_key = _key_by_type_host(conf, new_type, new_host)
-        trx = client.transactions.delete(new_type_host_key)
+        trx = client.transactions.put(
+            new_type_host_key,
+            value=uuid,
+        )
         on_success.append(trx)
 
     if 'region' in changed:
@@ -496,7 +503,10 @@ def update(conf, service):
         on_success.append(trx)
         new_region = service.region
         new_region_key = _key_by_region(conf, new_region) + '/' + uuid
-        trx = client.transactions.put(new_region_key, value=_EMPTY_VALUE)
+        trx = client.transactions.put(
+            new_region_key,
+            value=_EMPTY_VALUE,
+        )
         on_success.append(trx)
 
     # Update the primary service record...
@@ -508,11 +518,17 @@ def update(conf, service):
     compare = [
         client.transactions.version(uuid_key) == existing_meta.version,
     ]
-    return client.transaction(compare=[], success=on_success, failure=[])
+    res = client.transaction(
+        compare=compare,
+        success=on_success,
+        failure=[],
+    )
+    return res, status_lease
 
 
 def _new_service_trx(conf, service):
     client = _etcd_client(conf)
+    status_lease = client.lease(ttl=conf.status_ttl)
 
     type = service.type
     status = service.status
@@ -532,14 +548,19 @@ def _new_service_trx(conf, service):
         # Add the UUID to the index by service type and host
         client.transactions.put(type_host_key, value=uuid),
         # Add the UUID to the index by status
-        client.transactions.put(status_key, value=_EMPTY_VALUE),
+        client.transactions.put(
+            status_key,
+            value=_EMPTY_VALUE,
+            lease=status_lease,
+        ),
         # Add the UUID to the index by region
         client.transactions.put(region_key, value=_EMPTY_VALUE),
     ]
     compare = [
         client.transactions.version(uuid_key) == 0,
     ]
-    return client.transaction(compare=compare, success=on_success, failure=[])
+    res = client.transaction(compare=compare, success=on_success, failure=[])
+    return res, status_lease
 
 NotifyResult = collections.namedtuple('NotifyResult', 'events cancel')
 
