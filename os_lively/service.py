@@ -15,8 +15,8 @@
 """
 Service liveness and healthchecking library for OpenStack using etcd3.
 
-Entries in etcd are `os_lively.service.Service` protobuf3 messages. These entries
-are arranged in etcd using the following directory structure:
+Entries in etcd are `os_lively.service.Service` protobuf3 messages. These
+entries are arranged in etcd using the following directory structure:
 
 /services
   /by-uuid
@@ -272,7 +272,7 @@ def is_up(conf, **filters):
         uuid = _get_uuid(conf, **filters)
     if uuid is None:
         return False
-    
+
     return _is_up_by_uuid(conf, uuid)
 
 
@@ -293,7 +293,7 @@ def get_one(conf, **filters):
         uuid = _get_uuid(conf, **filters)
     if uuid is None:
         return None
-    
+
     return _get_by_uuid(conf, uuid)[0]
 
 
@@ -372,7 +372,7 @@ def delete(conf, **filters):
         uuid = _get_uuid(conf, **filters)
     if uuid is None:
         return None
-    
+
     s = _get_by_uuid(conf, uuid)[0]
     type = s.type
     host = s.host
@@ -391,7 +391,7 @@ def delete(conf, **filters):
         status_trxs.append(trx)
 
     on_success = [
-        # Add the service message blob in the primary UUID index 
+        # Add the service message blob in the primary UUID index
         client.transactions.delete(uuid_key),
         # Add the UUID to the index by service type and host
         client.transactions.delete(type_host_key),
@@ -436,7 +436,7 @@ def down(conf, maint_note=None, maint_start=None, maint_end=None, **filters):
     if maint_start is not None:
         s.maintenance_start = maint_start
     if maint_end is not None:
-        s.maintenance_end= maint_end
+        s.maintenance_end = maint_end
 
     return update(conf, s)
 
@@ -498,7 +498,7 @@ def update(conf, service):
 
     if 'region' in changed:
         old_region = existing.region
-        old_region_key = _key_by_region(conf, region) + '/' + uuid
+        old_region_key = _key_by_region(conf, old_region) + '/' + uuid
         trx = client.transactions.delete(old_region_key)
         on_success.append(trx)
         new_region = service.region
@@ -543,7 +543,7 @@ def _new_service_trx(conf, service):
     status_key = _key_by_status(conf, status) + '/' + uuid
 
     on_success = [
-        # Add the service message blob in the primary UUID index 
+        # Add the service message blob in the primary UUID index
         client.transactions.put(uuid_key, value=payload),
         # Add the UUID to the index by service type and host
         client.transactions.put(type_host_key, value=uuid),
@@ -581,13 +581,13 @@ def notify(conf, **filters):
         host: IP address or hostname
         uuid: UUID of the service
     """
+    client = _etcd_client(conf)
     uuid = filters.get('uuid')
     if uuid is None:
         uuid = _get_uuid(client, **filters)
     if uuid is None:
         return None
-    
+
     uri = _key_by_uuid(conf, uuid)
-    client = _etcd_client(conf)
     it, cancel = client.watch(uri)
     return NotifyResult(events=it, cancel=cancel)

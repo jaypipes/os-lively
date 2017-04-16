@@ -12,13 +12,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import os
-
 import mock
-import testtools
 
-from os_lively import conf
-from os_lively.tests import fixtures
 from os_lively.tests import base
 
 

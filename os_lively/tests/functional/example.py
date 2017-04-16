@@ -59,7 +59,7 @@ service.is_up(cfg, type=s2.type, host=s2.host)
 # Which services are in the us-east region?
 
 for s in service.get_many(cfg, region='us-east'):
-    print s.uuid
+    print(s.uuid)
 
 # Let's decommission one of the services
 

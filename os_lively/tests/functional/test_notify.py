@@ -79,4 +79,3 @@ class ThreadingNotifyTest(NotifyBaseTest):
 
         t.join()
         self.assertEqual(['DOWN', 'UP', 'DOWN'], status_changes)
-

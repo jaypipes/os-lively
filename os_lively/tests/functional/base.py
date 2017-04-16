@@ -12,8 +12,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import testtools
-
 from os_lively.tests import base
 from os_lively.tests import fixtures
 

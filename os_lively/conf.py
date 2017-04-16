@@ -31,7 +31,7 @@ class Conf(object):
             'debug',
             os.environ.get('OSLIVELY_DEBUG', DEFAULT_DEBUG),
         )
-        
+
         self.etcd_host = overrides.get(
             'etcd_host',
             os.environ.get('OSLIVELY_ETCD_HOST', DEFAULT_ETCD_HOST),

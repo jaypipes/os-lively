@@ -15,7 +15,6 @@
 import base64
 import json
 import subprocess
-import sys
 
 
 class NotFound(Exception):
