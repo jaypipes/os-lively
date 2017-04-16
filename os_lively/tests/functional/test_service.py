@@ -80,6 +80,13 @@ class ServiceTestCase(base.TestCase):
         service_uuids = [s.uuid for s in services]
         self.assertIn(service_uuid, service_uuids)
 
+        # Update region and check again
+        res.region = 'us-west'
+        service.update(self.cfg, res)
+        services = service.get_many(self.cfg, region='us-west')
+        service_uuids = [s.uuid for s in services]
+        self.assertIn(service_uuid, service_uuids)
+
         # Try filtering by wrong type
         services = service.get_many(self.cfg, type='nova-conductor')
         service_uuids = [s.uuid for s in services]
